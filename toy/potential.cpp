@@ -2,7 +2,7 @@
 #include "include/utils.hpp"
 
 // Bulding on M1 mac: 
-// g++ -std=c++11 potential.cpp -I/opt/homebrew/Cellar/eigen/3.4.0_1/include/eigen3 -o potential
+// g++ -std=c++11 potential.cpp src/utils.cpp -I/opt/homebrew/Cellar/eigen/3.4.0_1/include/eigen3 -o potential
 
 int main(int argc, char* argv[])
 {
@@ -60,13 +60,9 @@ int main(int argc, char* argv[])
     // Perform TT decomposotion
     std::vector<Eigen::Tensor<double, 3>> MPS; // SJEKK DETTE og gi nytt navn for det er ikke matriser
     Eigen::Tensor<double, 3> remaining_tensor = Verfgau; // Start with original tensor
-    for(int mode = 0;mode < 2;mode++)
+    for(int it = 0;it < 2;it++)
     {
-        std::vector<Eigen::Tensor<double, 2>> U;
-        Eigen::Tensor<double, 2> V = rank3_tensor_SVD(remaining_tensor, tol, U);
-
-        // Store tensors
-        MPS.push_back(U[0]);
+        Eigen::Tensor<double, 2> V = rank3_tensor_SVD(remaining_tensor, tol, MPS, it);
 
         // Reshape V for next iteration
         auto dims = remaining_tensor.dimensions();
