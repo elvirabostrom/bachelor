@@ -65,6 +65,7 @@ int main(int argc, char* argv[])
         Eigen::Tensor<double, 2> V = rank3_tensor_SVD(remaining_tensor, tol, MPS, it);
 
         // Reshape V for next iteration
+        std::cout << "dims of V " << it << ": "<< V.dimension(0) << "," << V.dimension(1) << std::endl << std::endl;
         auto dims = remaining_tensor.dimensions();
         remaining_tensor = V.reshape(Eigen::array<Eigen::Index, 3>{{V.dimension(0), dims[1], dims[2]}});
     }
@@ -76,7 +77,7 @@ int main(int argc, char* argv[])
     for(size_t i = 0;i < MPS.size();i++)
     {
         std::cout << "MPS core " << i << " dimensions: "
-                  << MPS[i].dimension(0) << " x " << MPS[i].dimension(1) << std::endl;
+                  << MPS[i].dimension(0) << " x " << MPS[i].dimension(1) << " x " << MPS[i].dimension(2) << std::endl;
     }
 
 	return 0;

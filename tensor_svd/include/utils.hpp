@@ -26,7 +26,7 @@ void tensor_to_bin(std::string& filename, Eigen::Tensor<Scalar, Rank>& tensor)
 }
 
 // Truncate singular values after one SVD
-void reduce_bond_dim(Eigen::MatrixXd& U, Eigen::MatrixXd& V, Eigen::VectorXd s, const double tol);
+void reduce_bond_dim(Eigen::MatrixXd& U, Eigen::MatrixXd& V, Eigen::VectorXd& s, const double tol);
 
 // Perform SVD decomposition on tensor once
 Eigen::Tensor<double, 2> rank3_tensor_SVD(const Eigen::Tensor<double, 3>& tensor, const double tol, std::vector<Eigen::Tensor<double, 3>>& MPS, int it);
