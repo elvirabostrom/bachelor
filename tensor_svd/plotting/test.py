@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 # Load rank3 tensor and reshape it
-def load_tensor(filename, shape, dtype=np.float32):
+def load_tensor(filename, shape, dtype=np.float64):
     data = np.fromfile(filename, dtype=dtype)  # Read binary data
     tensor = data.reshape(shape)  # Reshape into rank3 form
     return tensor

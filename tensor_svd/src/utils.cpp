@@ -60,7 +60,7 @@ Eigen::Tensor<double, 2> rank3_tensor_SVD(const Eigen::Tensor<double, 3>& tensor
 
     // Compute V * s
 	// dont know where singular values should actually go
-	Eigen::MatrixXd Vs = V * s.asDiagonal();
+	Eigen::MatrixXd Vs = s.asDiagonal() * V;
 
 	// Convert back to Eigen::Tensor datatype
 	Eigen::TensorMap<Eigen::Tensor<double, 2>> U_tensor(U.data(), U.rows(), U.cols());
