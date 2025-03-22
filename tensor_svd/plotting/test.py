@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
+"""
+C++
 # Load rank3 tensor and reshape it
 def load_tensor(filename, shape, dtype=np.float64):
     data = np.fromfile(filename, dtype=dtype)  # Read binary data
@@ -10,6 +12,10 @@ def load_tensor(filename, shape, dtype=np.float64):
 
 # Load test tensor
 potential_test = load_tensor("output/potential_test.bin", shape = (10, 10, 10))
+"""
+
+# python:
+potential_test = np.load("output/tensor_test.npy")
 
 # PLot 2D slices of rank3 tensor along Z axis - slices in XY plane
 def plot_tensor_slices(tensor):
