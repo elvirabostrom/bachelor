@@ -1,4 +1,7 @@
-import utils.py
+import numpy as np 
+from scipy import sparse
+from scipy import special
+import utils
 
 # General setup
 N = 20
@@ -10,22 +13,17 @@ y = np.linspace(-L, L, N)
 z = np.linspace(-L, L, N)
 
 # Verfgau exact
-potential = get_Verfgau(N, 1.5)
+potential = utils.get_Verfgau(x, y, z, N, 1.5)
 np.save("output/tensor_test.npy", potential)
 
 # TT of potential
-tol = 1e-15
-V = tensor_SVD(N, potential, tol)
-
-# Kinetic energy
-T = get_kinetic(N)
-
-
-
+bond_dim = 6
+V = utils.tensor_SVD(N, potential, bond_dim)
 """
 # test
 for i, tensor in enumerate(V):
 	print(f'Shape of tensor {i + 1}: {tensor.shape} \n')
+
 # contracted tensor
 contraction = np.tensordot(V[0], V[1], axes = 1)
 contraction = np.tensordot(contraction, V[2], axes = 1)
@@ -37,6 +35,9 @@ print(f"Shape of contracted TT: {contraction.shape}")
 """
 #Diff = tensor - contraction
 #print(np.linalg.norm(Diff))
+
+# Kinetic energy
+T = utils.get_kinetic(N)
 
 
 

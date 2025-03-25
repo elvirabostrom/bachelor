@@ -3,7 +3,7 @@ from scipy import sparse
 from scipy import special
 
 # Generate potential 
-def get_Verfgau(N, mu):
+def get_Verfgau(x, y, z, N, mu):
 	V = np.zeros((N, N, N))
 	c = 0.923 + 1.568 * mu
 	a = 0.2411 + 1.405 * mu
@@ -22,22 +22,25 @@ def get_Verfgau(N, mu):
 
 
 # Perform SVD
-def tensor_SVD(N, tensor, tol):
+def tensor_SVD(N, tensor, bond_dim):
 	TT = []
 	rank2_tensor = np.reshape(tensor, (N, N * N))
 	U, s, V = np.linalg.svd(rank2_tensor, full_matrices = False, compute_uv=True) 
 
+	"""
 	# Truncate singular values
 	for i, value in enumerate(s):
-		truncated_dim = i
+		bond_dim = i
 		if value < tol:
 			break
+	"""
 
-	s = s[:truncated_dim]
-	U = U[:, :truncated_dim] # keep trunctated_dim columns
-	V = V[:truncated_dim] # keep trunctated_dim rows
+	s = s[:bond_dim]
+	U = U[:, :bond_dim] # keep bond_dim columns
+	V = V[:bond_dim] # keep bond_dim rows
 
 	# Save U
+	U = U[np.newaxis, :, :]
 	TT.append(U)
 
 	# Left canonical form
@@ -49,24 +52,25 @@ def tensor_SVD(N, tensor, tol):
 	    rank2_tensor = np.reshape(remaining_tensor, (row * N, N))
 	    U, s, V = np.linalg.svd(rank2_tensor, full_matrices = False, compute_uv=True) 
 
+	    """
 	    # Truncate singular values
 	    for i, value in enumerate(s):
-	    	truncated_dim = i
-	    	if value < tol:
-	    		break
+	        bond_dim = i
+	        if value < tol:
+			    break
+	    """
 
-	    s = s[:truncated_dim]
-	    U = U[:, :truncated_dim] # keep trunctated_dim columns
-	    V = V[:truncated_dim] # keep trunctated_dim rows
+	    s = s[:bond_dim]
+	    U = U[:, :bond_dim] # keep trunctated_dim columns
+	    V = V[:bond_dim] # keep trunctated_dim rows
 
-	    rows, cols = TT[site].shape
-	    U = np.reshape(U, (cols, N, truncated_dim))
+	    U = np.reshape(U, (bond_dim, N, bond_dim))
 	    TT.append(U)
 
 	    remaining_tensor = np.diag(s) @ V
 
 	# Append last tensor
-	TT.append(remaining_tensor)
+	TT.append(remaining_tensor[:, :, np.newaxis])
 
 	return TT
 
@@ -84,21 +88,39 @@ def get_kinetic(N):
 
 # Compute kinetic energy operator acting on MPS
 def kinetic_psi(T, MPS):
-	# compute T |psi> (contract) and return new MPS
+	# compute T |psi> (contract?) and return new MPS (tridiagonal simplifies?)
 	# use T on each site
 	MPS_new = []
 	for i, site in enumerate(MPS):
-		MPS_new[i] = np.einsum('ijk, jj->ijk', T, site)
+		MPS_new.append(np.einsum('jj, ijk->ijk', T, site))
 	return MPS_new
+
+
+# Make MPO 
+def MPS_to_MPO(MPS):
+	MPO = []
+	for site in MPS:
+		dim1, N, dim2 = site.shape
+		identity = np.eye(N)
+
+		new_site = site[:, :, np.newaxis, :] * identity[np.newaxis, :, :, np.newaxis]
+		new_site = new_site.reshape(dim1, N, N, dim2)
+		MPO.append(new_site)
+	return MPO
 
 
 # Compute potential energy operator acting on MPS
 def potential_psi(V, MPS):
 	# compute V |psi> and return new MPS
-	# hadamand product
+	# hadamard product
+	# MPS_new = [MPS[i][np.newaxis, :, :] * V[i][:, :, np.newaxis] for i in range(len(MPS))]
+	# MPS_new = MPS_new.reshape(N, DPsi, DV)
+
+	V_MPO = MPS_to_MPO(V)
 	MPS_new = []
 	for i, site in enumerate(MPS):
-		MPS_new[i] = np.multiply(site, V[i], out = ndarray)
+		MPS_new.append(np.einsum('ippa, ipa->ipa', V_MPO[i], site))
+
 	return MPS_new
 
 
@@ -106,24 +128,22 @@ def potential_psi(V, MPS):
 def expectation_value(T, V, MPS):
 	# compute H |psi> = V |psi> + T |psi> = new MPS
 	# inner product between <psi| and new MPS  (contraction over two MPS's - site by site)
-	# normalize <psi||psi> (some test to check if it is actually normalized???)
+	# normalize <psi||psi> (some test???)
 	# return a scalar
-	H_MPS = np.add(potential_psi(V, MPS), kinetic_psi(T, MPS), out = ndarray)
+	H_MPS = [potential_psi(V, MPS)[i] + kinetic_psi(T, MPS)[i] for i in range(len(MPS))]
 	# Get normalization
-	conj_MPS = []
-	for site in MPS:
-		conj_MPS.append(np.conj(site))
+	conj_MPS = [np.transpose(site, (2, 1, 0)) for site in MPS]
 	norm = 0
 	for i, site in enumerate(MPS):
 		norm += np.einsum('ijk, ijk', conj_MPS[i], MPS[i])
 
-	# Compute expectation value
-	M = np.einsum('pjl, ijk->kl', conj_MPS[0], H_MPS[0])
+	# Compute expectation value (make loop)
+	A = np.einsum('inm, ino->mo', conj_MPS[0], H_MPS[0])
+	B = np.einsum('mnm, mo->onm', conj_MPS[1], A)
+	A = np.einsum('onm, ono->mo', B, H_MPS[1]) 
+	B = np.einsum('mni, mo->oni', conj_MPS[2], A)
+	E = np.einsum('oni, oni', B, H_MPS[2])
 
-	for i in range(len(H_MPS) - 1):
-		B = np.einsum('lrq, kl->krq', conj_MPS[i + 1], M)
-		M = np.einsum('krs, krm->sm', H_MPS[i + 1], B)
+	return E / norm
 
-	B = np.einsum('kr, rsp->ksp', conj_MPS[-1], M)
-	E = np.einsum('ksp, ksp', B, H_MPS[-1]) / norm
-	return E
+
