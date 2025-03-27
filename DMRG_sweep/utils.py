@@ -26,6 +26,13 @@ def tensor_SVD(N, tensor, bond_dim):
 	rank2_tensor = np.reshape(tensor, (N, N * N))
 	U, s, V = np.linalg.svd(rank2_tensor, full_matrices = False, compute_uv=True) 
 
+	#test bond dim 
+	for i in range(bond_dim):
+		if s[i] < 1e-10:
+			print(f'Bond_dim can be lower than {bond_dim}, suggested new bond dim is {i}.')
+			break
+
+
 	s = s[:bond_dim]
 	U = U[:, :bond_dim] # keep bond_dim columns
 	V = V[:bond_dim] # keep bond_dim rows

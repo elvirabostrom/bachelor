@@ -13,9 +13,9 @@ y = np.linspace(-L, L, N)
 z = np.linspace(-L, L, N)
 
 # Precalculate
-x = 0.5 * x**2
-y = 0.5 * y**2
-z = 0.5 * z**2
+x_sq = 0.5 * x**2
+y_sq = 0.5 * y**2
+z_sq = 0.5 * z**2
 
 # Harmonic oscillator potensial tensor train decomp
 def V_HO_TT():
@@ -23,35 +23,32 @@ def V_HO_TT():
 	for i in range(len(x)):
 		for j in range(len(y)):
 			for k in range(len(z)):
-				V[i ,j, k] = x[i] + y[j] + z[k]
+				V[i ,j, k] = x_sq[i] + y_sq[j] + z_sq[k]
 	# np.save("output/test_harmonic.npy", V)
 	TT = utils.tensor_SVD(N, V, 9)
+
 	return TT
 
 # Generate ground state
 def HO_ground_state():
 	Psi = np.zeros((N, N, N))
-	psi_x = np.exp(-x)
-	psi_y = np.exp(-y)
-	psi_z = np.exp(-z)
+	psi_x = np.exp(-x_sq)
+	psi_y = np.exp(-y_sq)
+	psi_z = np.exp(-z_sq)
 	for i in range(len(psi_x)):
 		for j in range(len(psi_y)):
 			for k in range(len(psi_z)):
 				Psi[i ,j, k] = psi_x[i] * psi_y[j] * psi_z[k]
 	# np.save("output/test_harmonic_GS.npy", np.conj(Psi) * Psi)
 	MPS = utils.tensor_SVD(N, Psi, 10)
+
 	return MPS
 
 
 # Initializations
 V = V_HO_TT()
 MPS = HO_ground_state()
-T = utils.get_kinetic(N) * 0.5 / h**2
-
-
-# foreløpig test
-#T_MPS, e_kin = utils.kinetic_psi(T, MPS)
-#V_MPS, e_pot = utils.potential_psi(N, V, MPS)
+T = utils.get_kinetic(N) * (-0.5) / h**2
 
 # Computate expectation value
 E_kinetic, E_potential, E = utils.expectation_value(N, T, V, MPS) 
