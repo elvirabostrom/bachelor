@@ -25,7 +25,7 @@ def V_HO_TT():
 			for k in range(len(z)):
 				V[i ,j, k] = x[i] + y[j] + z[k]
 	# np.save("output/test_harmonic.npy", V)
-	TT = utils.tensor_SVD(N, V, 10)
+	TT = utils.tensor_SVD(N, V, 9)
 	return TT
 
 # Generate ground state
@@ -45,16 +45,16 @@ def HO_ground_state():
 
 # Initializations
 V = V_HO_TT()
-
 MPS = HO_ground_state()
+T = utils.get_kinetic(N) * 0.5 / h**2
 
-T = utils.get_kinetic(N)
 
-
-# foreløpig test (går ellers rett i expectation_value())
-T_MPS = utils.kinetic_psi(T, MPS)
-V_MPS = utils.potential_psi(V, MPS) # putt disse inni expec values senere
+# foreløpig test
+#T_MPS, e_kin = utils.kinetic_psi(T, MPS)
+#V_MPS, e_pot = utils.potential_psi(N, V, MPS)
 
 # Computate expectation value
-E = utils.expectation_value(T, V, MPS) 
+E_kinetic, E_potential, E = utils.expectation_value(N, T, V, MPS) 
+print(E_kinetic)
+print(E_potential)
 print(E)
