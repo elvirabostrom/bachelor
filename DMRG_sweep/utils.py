@@ -26,13 +26,6 @@ def tensor_SVD(N, tensor, bond_dim):
 	rank2_tensor = np.reshape(tensor, (N, N * N))
 	U, s, V = np.linalg.svd(rank2_tensor, full_matrices = False, compute_uv=True) 
 
-	#test bond dim 
-	for i in range(bond_dim):
-		if s[i] < 1e-10:
-			print(f'Bond_dim can be lower than {bond_dim}, suggested new bond dim is {i}.')
-			break
-
-
 	s = s[:bond_dim]
 	U = U[:, :bond_dim] # keep bond_dim columns
 	V = V[:bond_dim] # keep bond_dim rows
@@ -66,10 +59,9 @@ def tensor_SVD(N, tensor, bond_dim):
 
 # Compute transpose (only real numbers) of MPS and the norm
 def get_bra_state(MPS):
-	conj_MPS = [np.transpose(site, (2, 1, 0)) for site in MPS]
-	norm = 0
-	for i, site in enumerate(MPS):
-		norm += np.einsum('ijk, ijk', conj_MPS[i], MPS[i])
+	conj_MPS = [np.conj(site) for site in MPS]
+	norm = np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', MPS[0], MPS[1], MPS[2], conj_MPS[0], conj_MPS[1], conj_MPS[2], optimize = True)
+	norm = norm[0, 0, 0, 0]
 
 	return conj_MPS, norm
 
@@ -99,13 +91,17 @@ def get_kinetic(N):
 # Compute kinetic energy operator acting on MPS
 def kinetic_psi(T, MPS):
 	# Compute T |psi>
-	# bond dim will not grow here
-	MPS_new = [np.einsum('jl, ilk->ijk', T, site) for site in MPS]
+	Tx_MPS = np.einsum('jl,ilk->ijk', T, MPS[0])  
+	Ty_MPS = np.einsum('jl,ilk->ijk', T, MPS[1])  
+	Tz_MPS = np.einsum('jl,ilk->ijk', T, MPS[2])  
 
 	# Compute expectation value
-	MPS_conj, norm = get_bra_state(MPS)
-	E_kinetic = np.einsum('ipj, jqk, krl, xpy, yqz, zrw ->ilxw', MPS_new[0], MPS_new[1], MPS_new[2], MPS_conj[0], MPS_conj[1], MPS_conj[2], optimize = True)
-	E_kinetic = E_kinetic[0][0][0][0] / norm
+	conj_MPS, norm = get_bra_state(MPS)
+
+	E_kinetic = ( np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', Tx_MPS, MPS[1], MPS[2], conj_MPS[0], conj_MPS[1], conj_MPS[2], optimize = True)
+    + np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', MPS[0], Ty_MPS, MPS[2], conj_MPS[0], conj_MPS[1], conj_MPS[2], optimize = True)
+    + np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', MPS[0], MPS[1], Tz_MPS, conj_MPS[0], conj_MPS[1], conj_MPS[2], optimize = True) )
+	E_kinetic = E_kinetic[0, 0, 0, 0] / norm
 
 	return E_kinetic
 
@@ -122,8 +118,8 @@ def potential_psi(N, V, MPS):
 
 	# Compute expectation value
 	MPS_conj, norm = get_bra_state(MPS)
-	E_potential = np.einsum('ipj, jqk, krl, xpy, yqz, zrw ->ilxw', MPS_new[0], MPS_new[1], MPS_new[2], MPS_conj[0], MPS_conj[1], MPS_conj[2], optimize = True)
-	E_potential = E_potential[0][0][0][0] / norm
+	E_potential = np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', MPS_new[0], MPS_new[1], MPS_new[2], MPS_conj[0], MPS_conj[1], MPS_conj[2], optimize = True)
+	E_potential = E_potential[0, 0, 0, 0] / norm
 
 	return E_potential
 
