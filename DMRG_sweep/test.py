@@ -4,7 +4,7 @@ from scipy import special
 import utils
 
 # General setup
-N = 100
+N = 200
 L = 10
 h = 2 * L / (N - 1)
 
@@ -25,7 +25,7 @@ def V_HO_TT():
 			for k in range(len(z)):
 				V[i ,j, k] = x_sq[i] + y_sq[j] + z_sq[k]
 	# np.save("output/test_harmonic.npy", V)
-	TT = utils.tensor_SVD(N, V, 9)
+	TT = utils.tensor_SVD(N, V, 2)
 
 	return TT
 
@@ -42,21 +42,8 @@ def HO_ground_state():
 				Psi[i ,j, k] = psi_x[i] * psi_y[j] * psi_z[k]
 	#Psi_norm = Psi / np.linalg.norm(Psi)
 
-	# TEST KINETISK FORVENTNINGSVERDI
-	"""
-	T = utils.get_kinetic(N) * (1 / (2 * h**2))
-	T_psi_x = np.tensordot(T, Psi_norm, axes=([1], [0]))
-	T_psi_y = np.tensordot(T, Psi_norm, axes=([1], [1]))
-	T_psi_z = np.tensordot(T, Psi_norm, axes=([1], [2]))
-	E_kin_x = np.sum(np.conj(Psi_norm) * T_psi_x)
-	E_kin_y = np.sum(np.conj(Psi_norm) * T_psi_y)
-	E_kin_z = np.sum(np.conj(Psi_norm) * T_psi_z)
-	E_kin_total = (E_kin_x + E_kin_y + E_kin_z).real
-	print("Kinetisk energi (direkte beregning):", E_kin_total)
-	"""
-
 	# np.save("output/test_harmonic_GS.npy", np.conj(Psi) * Psi)
-	MPS = utils.tensor_SVD(N, Psi, 10)
+	MPS = utils.tensor_SVD(N, Psi, 2)
 
 	return MPS
 
@@ -66,27 +53,10 @@ V = V_HO_TT()
 MPS = HO_ground_state() 
 T = utils.get_kinetic(N) * (1 / (2 * h**2)) 
 
-MPS_conj, norm = utils.get_bra_state(MPS)
-print("Norm av MPS:", norm)
+# Compute expectation values
+expectation_values = utils.expectation_values(N, T, V, MPS)
 
+print(f'<T> = {expectation_values[0]}')
+print(f'<V> = {expectation_values[1]}')
+print(f'<E> = {expectation_values[2]}')
 
-E_kinetic = utils.kinetic_psi(T, MPS)
-
-
-# Computate expectation value
-E_kinetic, E_potential, E = utils.expectation_value(N, T, V, MPS) 
-print(E_kinetic)
-print(E_potential)
-print(E)
-
-
-#test
-"""
-contraction = np.einsum('ijk, kmn->ijmn', MPS[0], MPS[1])
-contraction = np.einsum('ijmn,nwe->ijmwe', contraction, MPS[2])
-contraction = contraction.reshape(50, 50, 50)
-print("Norm av Psi etter SVD:", np.linalg.norm(contraction))
-print("Max Psi etter SVD:", np.max(np.abs(contraction)))
-
-print('tridiagonal matrise før skalering: ', utils.get_kinetic(N))
-"""
