@@ -2,7 +2,7 @@ import numpy as np
 from scipy import sparse
 from scipy import special
 
-# Generate potential 
+# Generate potential exact (only for small dimensions)
 def get_Verfgau(x, y, z, N, mu):
 	V = np.zeros((N, N, N))
 	c = 0.923 + 1.568 * mu
@@ -11,16 +11,28 @@ def get_Verfgau(x, y, z, N, mu):
 	for i in range(len(x)):
 		for j in range(len(y)):
 			for k in range(len(z)):
-				if i == j == k == 0:
-					r_ijk = mu  
+				r_ijk = np.sqrt(x[i]**2 + y[j]**2 + z[k]**2)
+				if x[i] == y[j] == z[k] == 0:
+					V[i, j, k] = mu * c 
 				else:
-					r_ijk = np.sqrt(x[i]**2 + y[j]**2 + z[k]**2)
-				erf_r = special.erf(r_ijk)
-				V[i, j, k] = erf_r / r_ijk * c * np.exp(- a * r_ijk)
+					erf_r = special.erf(r_ijk)
+					V[i, j, k] = erf_r / r_ijk * c * np.exp(- a * r_ijk)
 
 	return V
 
-# Perform SVD to make TT
+# Potential for TT cross
+def Verfgau_for_tt_cross(dims, mu = 1.5):
+	c = 0.923 + 1.568 * mu
+	a = 0.2411 + 1.405 * mu
+	r_ijk = np.sqrt(dims[:, 0]**2 + dims[:, 1]**2 + dims[:, 2]**2)
+	erf_r = special.erf(r_ijk)
+	V = erf_r / r_ijk * c * np.exp(- a * r_ijk)
+	V[(r_ijk == 0)] = mu * c 
+	
+	return V
+	
+
+# Perform SVD to make TT (only for small dimensions)
 def tensor_SVD(N, tensor, bond_dim):
 	TT = []
 	rank2_tensor = np.reshape(tensor, (N, N * N))
@@ -124,11 +136,11 @@ def potential_psi(N, V, MPS):
 	return E_potential
 
 # Compute expectation value for current state
-def expectation_value(N, T, V, MPS):
+def expectation_values(N, T, V, MPS):
 	E_kinetic = kinetic_psi(T, MPS)
 	E_potential = potential_psi(N, V, MPS)
 	E = E_kinetic + E_potential
 
-	return E_kinetic, E_potential, E
+	return [E_kinetic, E_potential, E]
 
 

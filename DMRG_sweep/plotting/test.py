@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
-potential_test = np.load("output/test_harmonic_GS.npy")
+potential_test = np.load("output/tt_potential.npy")
 
 # PLot 2D slices of rank3 tensor along Z axis - slices in XY plane
 def plot_tensor_slices(tensor):
