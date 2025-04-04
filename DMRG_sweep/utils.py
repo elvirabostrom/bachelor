@@ -1,8 +1,9 @@
 import numpy as np 
 from scipy import sparse
 from scipy import special
+from scikit_tt.tensor_train import TT
 
-# Generate potential exact (only for small dimensions)
+# Generate potential exact
 def get_Verfgau(x, y, z, N, mu):
 	V = np.zeros((N, N, N))
 	c = 0.923 + 1.568 * mu
@@ -21,10 +22,10 @@ def get_Verfgau(x, y, z, N, mu):
 	return V
 
 # Potential for TT cross
-def Verfgau_for_tt_cross(dims, mu = 1.5):
+def Verfgau_for_tt_cross(r, mu = 1.5):
 	c = 0.923 + 1.568 * mu
 	a = 0.2411 + 1.405 * mu
-	r_ijk = np.sqrt(dims[:, 0]**2 + dims[:, 1]**2 + dims[:, 2]**2)
+	r_ijk = np.sqrt(r[:, 0]**2 + r[:, 1]**2 + r[:, 2]**2)
 	erf_r = special.erf(r_ijk)
 	V = erf_r / r_ijk * c * np.exp(- a * r_ijk)
 	V[(r_ijk == 0)] = mu * c 
@@ -32,9 +33,9 @@ def Verfgau_for_tt_cross(dims, mu = 1.5):
 	return V
 	
 
-# Perform SVD to make TT (only for small dimensions)
+# Perform SVD to make TT
 def tensor_SVD(N, tensor, bond_dim):
-	TT = []
+	Ttrain = []
 	rank2_tensor = np.reshape(tensor, (N, N * N))
 	U, s, V = np.linalg.svd(rank2_tensor, full_matrices = False, compute_uv=True) 
 
@@ -44,7 +45,7 @@ def tensor_SVD(N, tensor, bond_dim):
 
 	# Append first tensor
 	U = U[np.newaxis, :, :]
-	TT.append(U)
+	Ttrain.append(U)
 
 	# Left canonical form
 	remaining_tensor = np.diag(s) @ V
@@ -60,16 +61,16 @@ def tensor_SVD(N, tensor, bond_dim):
 	    V = V[:bond_dim] # keep trunctated_dim rows
 
 	    U = np.reshape(U, (bond_dim, N, bond_dim))
-	    TT.append(U)
+	    Ttrain.append(U)
 
 	    remaining_tensor = np.diag(s) @ V
 
 	# Append last tensor
-	TT.append(remaining_tensor[:, :, np.newaxis])
+	Ttrain.append(remaining_tensor[:, :, np.newaxis])
 
-	return TT
+	return Ttrain
 
-# Compute transpose (only real numbers) of MPS and the norm
+# Compute conjugate MPS and norm
 def get_bra_state(MPS):
 	conj_MPS = [np.conj(site) for site in MPS]
 	norm = np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', MPS[0], MPS[1], MPS[2], conj_MPS[0], conj_MPS[1], conj_MPS[2], optimize = True)
@@ -77,7 +78,7 @@ def get_bra_state(MPS):
 
 	return conj_MPS, norm
 
-# Make MPO - add one additional physical index on each site
+# Make diagonal MPO - add one additional physical index on each site
 def MPS_to_MPO(MPS):
 	MPO = []
 	for site in MPS:
@@ -93,14 +94,25 @@ def MPS_to_MPO(MPS):
 
 
 # Generate kinetic energy operator
-def get_kinetic(N):
-	# return N x N matrix operating on physical dimensions
+def get_kinetic(N, h):
 	diagonals = [np.ones(N) * 2, np.ones(N - 1) * - 1, np.ones(N - 1) * - 1]
 	T = sparse.diags(diagonals, [0, -1, 1]).toarray()
 
-	return T
+	return T * (1 / (2 * h**2)) 
 
-# Compute kinetic energy operator acting on MPS
+# Kinetic energy MPO
+def get_kinetic_MPO(h, N):
+	identity = np.eye(N)
+	T = get_kinetic(N, h)
+
+	T_x = TT([T[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis]])
+	T_y = TT([identity[np.newaxis, :, :, np.newaxis], T[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis]]) 
+	T_z = TT([identity[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis], T[np.newaxis, :, :, np.newaxis]])
+	T_MPO = T_x + T_y + T_z
+
+	return T_MPO
+
+# Compute kinetic expectectation value
 def kinetic_psi(T, MPS):
 	# Compute T |psi>
 	Tx_MPS = np.einsum('jl,ilk->ijk', T, MPS[0])  
@@ -109,7 +121,6 @@ def kinetic_psi(T, MPS):
 
 	# Compute expectation value
 	conj_MPS, norm = get_bra_state(MPS)
-
 	E_kinetic = ( np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', Tx_MPS, MPS[1], MPS[2], conj_MPS[0], conj_MPS[1], conj_MPS[2], optimize = True)
     + np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', MPS[0], Ty_MPS, MPS[2], conj_MPS[0], conj_MPS[1], conj_MPS[2], optimize = True)
     + np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', MPS[0], MPS[1], Tz_MPS, conj_MPS[0], conj_MPS[1], conj_MPS[2], optimize = True) )
@@ -117,7 +128,7 @@ def kinetic_psi(T, MPS):
 
 	return E_kinetic
 
-# Compute potential energy operator acting on MPS
+# Compute potential expectectation value
 def potential_psi(N, V, MPS):
 	# Compute V |psi>
 	V_MPO = MPS_to_MPO(V)
@@ -141,6 +152,6 @@ def expectation_values(N, T, V, MPS):
 	E_potential = potential_psi(N, V, MPS)
 	E = E_kinetic + E_potential
 
-	return [E_kinetic, E_potential, E]
+	return E
 
 

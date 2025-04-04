@@ -4,7 +4,7 @@ from scipy import special
 import utils
 
 # General setup
-N = 200
+N = 100
 L = 10
 h = 2 * L / (N - 1)
 
@@ -25,7 +25,7 @@ def V_HO_TT():
 			for k in range(len(z)):
 				V[i ,j, k] = x_sq[i] + y_sq[j] + z_sq[k]
 	# np.save("output/test_harmonic.npy", V)
-	TT = utils.tensor_SVD(N, V, 2)
+	TT = utils.tensor_SVD(N, V, 4)
 
 	return TT
 
@@ -51,12 +51,33 @@ def HO_ground_state():
 # Initializations
 V = V_HO_TT() 
 MPS = HO_ground_state() 
-T = utils.get_kinetic(N) * (1 / (2 * h**2)) 
+T = utils.get_kinetic(N, h)
+
+# test
+T_MPO = utils.get_kinetic_MPO(h, N)
 
 # Compute expectation values
-expectation_values = utils.expectation_values(N, T, V, MPS)
+expectation_value = utils.expectation_values(N, T, V, MPS)
 
-print(f'<T> = {expectation_values[0]}')
-print(f'<V> = {expectation_values[1]}')
-print(f'<E> = {expectation_values[2]}')
+print(f'<E> = {expectation_value}')
+
+
+# Solverrs
+from scikit_tt.tensor_train import TT
+import scikit_tt.solvers.evp as evp
+
+
+V = TT(utils.MPS_to_MPO(V))
+T = utils.get_kinetic_MPO(h, N)
+H = V + T
+
+MPO = TT([site[:, :, np.newaxis, :] for site in MPS])
+
+# Solve alternating linear scheme (single site)
+eigval, eigtens, it = evp.als(H, initial_guess = MPO, sigma = -1)
+print(eigval)
+
+# Solve power method
+pm = evp.power_method(H, initial_guess = MPO, sigma = -1, repeats = 10)
+print(pm)
 
