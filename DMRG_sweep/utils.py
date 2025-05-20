@@ -1,7 +1,7 @@
 import numpy as np 
 from scipy import sparse
 from scipy import special
-from scikit_tt.tensor_train import TT
+#from scikit_tt.tensor_train import TT
 
 # Generate potential exact
 def get_Verfgau(x, y, z, N, mu):
@@ -13,11 +13,11 @@ def get_Verfgau(x, y, z, N, mu):
 		for j in range(len(y)):
 			for k in range(len(z)):
 				r_ijk = np.sqrt(x[i]**2 + y[j]**2 + z[k]**2)
-				if x[i] == y[j] == z[k] == 0:
-					V[i, j, k] = mu * c 
+				if r_ijk  == 0:
+					V[i, j, k] = - (mu + c) 
 				else:
-					erf_r = special.erf(r_ijk)
-					V[i, j, k] = erf_r / r_ijk * c * np.exp(- a * r_ijk)
+					erf_r = special.erf(r_ijk * mu)
+					V[i, j, k] = - (erf_r / r_ijk + c * np.exp(- (a**2 * r_ijk**2)))
 
 	return V
 
@@ -26,9 +26,9 @@ def Verfgau_for_tt_cross(r, mu = 1.5):
 	c = 0.923 + 1.568 * mu
 	a = 0.2411 + 1.405 * mu
 	r_ijk = np.sqrt(r[:, 0]**2 + r[:, 1]**2 + r[:, 2]**2)
-	erf_r = special.erf(r_ijk)
-	V = erf_r / r_ijk * c * np.exp(- a * r_ijk)
-	V[(r_ijk == 0)] = mu * c 
+	erf_r = special.erf(r_ijk * mu)
+	V = - (erf_r / r_ijk + c * np.exp(- (a**2 * r_ijk**2)))
+	V[(r_ijk == 0)] = - (mu + c)
 	
 	return V
 	
@@ -47,7 +47,7 @@ def tensor_SVD(N, tensor, bond_dim):
 	U = U[np.newaxis, :, :]
 	Ttrain.append(U)
 
-	# Left canonical form
+	# Right canonical form
 	remaining_tensor = np.diag(s) @ V
 
 	# For all sites that are not on either egde
@@ -69,6 +69,25 @@ def tensor_SVD(N, tensor, bond_dim):
 	Ttrain.append(remaining_tensor[:, :, np.newaxis])
 
 	return Ttrain
+
+# copied from scikit_tt
+def add_MPOs(A, B):
+	order = len(A)
+	A_ranks = [list(A[0].shape)[0], list(A[1].shape)[0], list(A[1].shape)[3], list(A[2].shape)[3]]
+	B_ranks = [list(B[0].shape)[0], list(B[1].shape)[0], list(B[1].shape)[3], list(B[2].shape)[3]]
+	ranks = [1] + [A_ranks[i] + B_ranks[i] for i in range(1, order)] + [1]
+	MPO_SUM = []
+
+	for i in range(order):
+		MPO_SUM.append(np.zeros([ranks[i], list(A[i].shape)[1], list(A[i].shape)[2], ranks[i + 1]]))
+		MPO_SUM[i][0:A_ranks[i], :, :, 0:A_ranks[i + 1]] = A[i]
+		r1 = ranks[i] - B_ranks[i]
+		r2 = ranks[i]
+		r3 = ranks[i + 1] - B_ranks[i + 1]
+		r4 = ranks[i + 1]
+		MPO_SUM[i][r1:r2, :, :, r3:r4] = B[i]
+
+	return MPO_SUM
 
 # Compute conjugate MPS and norm
 def get_bra_state(MPS):
@@ -95,20 +114,25 @@ def MPS_to_MPO(MPS):
 
 # Generate kinetic energy operator
 def get_kinetic(N, h):
-	diagonals = [np.ones(N) * 2, np.ones(N - 1) * - 1, np.ones(N - 1) * - 1]
-	T = sparse.diags(diagonals, [0, -1, 1]).toarray()
+	diagonals = [np.ones(N) * 30, np.ones(N - 1) * - 16, np.ones(N - 1) * - 16, np.ones(N - 2), np.ones(N - 2)]
+	T = sparse.diags(diagonals, [0, -1, 1, -2, 2]).toarray()
 
-	return T * (1 / (2 * h**2)) 
+	return T * (1 / (24 * h**2)) 
 
 # Kinetic energy MPO
 def get_kinetic_MPO(h, N):
 	identity = np.eye(N)
 	T = get_kinetic(N, h)
 
-	T_x = TT([T[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis]])
-	T_y = TT([identity[np.newaxis, :, :, np.newaxis], T[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis]]) 
-	T_z = TT([identity[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis], T[np.newaxis, :, :, np.newaxis]])
-	T_MPO = T_x + T_y + T_z
+	# T_x = TT([T[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis]])
+	# T_y = TT([identity[np.newaxis, :, :, np.newaxis], T[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis]]) 
+	# T_z = TT([identity[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis], T[np.newaxis, :, :, np.newaxis]])
+	# T_MPO = T_x + T_y + T_z
+	T_x = [T[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis]]
+	T_y = [identity[np.newaxis, :, :, np.newaxis], T[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis]]
+	T_z = [identity[np.newaxis, :, :, np.newaxis], identity[np.newaxis, :, :, np.newaxis], T[np.newaxis, :, :, np.newaxis]]
+	T_ = add_MPOs(T_x, T_y)
+	T_MPO = add_MPOs(T_, T_z)
 
 	return T_MPO
 
@@ -147,7 +171,7 @@ def potential_psi(N, V, MPS):
 	return E_potential
 
 # Compute expectation value for current state
-def expectation_values(N, T, V, MPS):
+def expectation_value(N, T, V, MPS):
 	E_kinetic = kinetic_psi(T, MPS)
 	E_potential = potential_psi(N, V, MPS)
 	E = E_kinetic + E_potential

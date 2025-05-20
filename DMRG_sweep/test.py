@@ -2,6 +2,7 @@ import numpy as np
 from scipy import sparse
 from scipy import special
 import utils
+import sweep_impl
 
 # General setup
 N = 100
@@ -57,27 +58,40 @@ T = utils.get_kinetic(N, h)
 T_MPO = utils.get_kinetic_MPO(h, N)
 
 # Compute expectation values
-expectation_value = utils.expectation_values(N, T, V, MPS)
+expectation_value = utils.expectation_value(N, T, V, MPS)
 
 print(f'<E> = {expectation_value}')
 
 
-# Solverrs
-from scikit_tt.tensor_train import TT
-import scikit_tt.solvers.evp as evp
-
-
-V = TT(utils.MPS_to_MPO(V))
+# MPO formalism
+V = utils.MPS_to_MPO(V)
 T = utils.get_kinetic_MPO(h, N)
-H = V + T
+H = utils.add_MPOs(V, T)
 
-MPO = TT([site[:, :, np.newaxis, :] for site in MPS])
+# MPS_new = []
+# for i, site in enumerate(MPS):
+# 	contracted_MPS = np.einsum('ipqa, jqb->ijpab', H[i], site)
+# 	new_bond_dim1 = list(H[i].shape)[0] * list(site.shape)[0]
+# 	new_bond_dim2 = list(H[i].shape)[-1] * list(site.shape)[-1]
+# 	MPS_new.append(contracted_MPS.reshape(new_bond_dim1, N, new_bond_dim2))
 
-# Solve alternating linear scheme (single site)
-eigval, eigtens, it = evp.als(H, initial_guess = MPO, sigma = -1)
-print(eigval)
+# # Compute expectation value
+# MPS_conj, norm = utils.get_bra_state(MPS)
+# E = np.einsum('ijk, kpl, lmn, qje, epu, umt->inqt', MPS_new[0], MPS_new[1], MPS_new[2], MPS_conj[0], MPS_conj[1], MPS_conj[2], optimize = True)
+# E = E[0, 0, 0, 0] / norm
+# print(E)
 
-# Solve power method
-pm = evp.power_method(H, initial_guess = MPO, sigma = -1, repeats = 10)
-print(pm)
+E = sweep_impl.expectation_value(MPS, H)
+
+
+# Solverrs
+# from scikit_tt.tensor_train import TT
+# import scikit_tt.solvers.evp as evp
+# MPO = [site[:, :, np.newaxis, :] for site in MPS]
+# # Solve alternating linear scheme (single site)
+# eigval, eigtens, it = evp.als(H, initial_guess = MPO, sigma = -1)
+# print(eigval)
+# # Solve power method
+# pm = evp.power_method(H, initial_guess = MPO, sigma = -1, repeats = 10)
+# print(pm)
 

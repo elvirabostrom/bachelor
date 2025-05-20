@@ -4,97 +4,109 @@ from scipy import special
 import utils
 from ttml.tt_cross import estimator_to_tt_cross
 from scikit_tt.tensor_train import TT
-#from scipy.sparse.linalg import LinearOperator
 import scikit_tt.solvers.evp as evp
+from time import time
 
-# General setup
-N = 20
-L = 5
-h = 2 * L / (N - 1)
-x = np.linspace(-L, L, N)
+def construct_H(N, L = 15):
+    # General setup
+    h = 2 * L / (N - 1)
+    x = np.linspace(-L, L, N)
 
-# TT cross for potential
-xg = np.append(x[:-1], np.inf)
-dims = [xg] * 3
-TT_ = estimator_to_tt_cross(utils.Verfgau_for_tt_cross, dims, max_rank = 15, tol = 1e-9, method = 'regular')
+    # TT cross for potential
+    xg = np.append(x, np.inf)
+    dims = [xg] * 3
+    TT_cross = estimator_to_tt_cross(utils.Verfgau_for_tt_cross, dims, max_rank = 15, tol = 1e-9, method = 'regular')
+    TT_ = [site[:,:-1,:] for site in TT_cross]
 
-# Make potential energy MPO
-V = TT(utils.MPS_to_MPO(TT_))
+    # Verfgau = utils.get_Verfgau(x, x, x, N, 1.5)
+    # np.save("output/test_Verfgau_exact.npy", Verfgau)
+    # contraction1 = np.einsum('ijk, kpm->ijpm', TT_[0], TT_[1])
+    # contraction1 = np.einsum('ijpm, mqi->jpq', contraction1, TT_[2])
+    # np.save("output/tt_potential.npy", contraction1)
 
-# Make kinetic energy MPO
-T = utils.get_kinetic_MPO(h, N)
+    # Make potential energy MPO
+    V = TT(utils.MPS_to_MPO(TT_))
 
-# Hamiltonian MPO
-H = V + T
+    # Make kinetic energy MPO
+    T = TT(utils.get_kinetic_MPO(h, N))
 
-# Initial guess MPO
-M = 10 # bond dim, ≈ 100 is sufficient for 1d ground state (senere)
-MPS = [np.random.rand(1, N, M), np.random.rand(M, N, M), np.random.rand(M, N, 1)]
-MPO = [site[:, :, np.newaxis, :] for site in MPS]
-MPO_state = TT(MPO)
+    # Hamiltonian MPO
+    H = V + T
 
-# Solve alternating linear scheme (single site)
-eigval, eigtens, it = evp.als(H, initial_guess = MPO_state, sigma = -1)
-print(eigval)
+    return H
 
-# Solve power method
-pm = evp.power_method(H, initial_guess = MPO_state, sigma = -1, repeats = 10)
-print(pm)
+def solve_ALS(MPO_state, H):
+	# Solve alternating linear scheme (single site)
+	tic = time()
+	eigval, eigtens, it = evp.als(H, initial_guess = MPO_state, sigma = -1)
+	toc = time() - tic
+	print(f'Time for ALS:  {toc:.2f}')
+	return eigval, toc
 
-
-
-# # finne forventningsverdi til MPS uten MPS formen
-# Psi = np.einsum('ijk, kpo, omn->ijpmn', MPS[0], MPS[1], MPS[2]).reshape(N, N, N)
-# u = Psi.ravel() #Psi på flat form
-# v = utils.get_Verfgau(x, y, z, N, 1.5).ravel() #Potensiale på flat form
-
-# H = T + T + T + V
-
-# def mv(v):
-# 	# returnerer A @ v
-
-# A = LinearOperator((dimensjon, dimensjon), matvec = mv(u)) #matrise-vektor produktet, som vi skal finne egenverdien til
-# A.matvec(u)
-# #finn egenverdi
-# eigval, eigvec = sparse.linalg.eigsh(A, k = 1, which = 'SA') #finner egenverdi
-# Psi = u.reshape(N, N, N)
+def solve_pm(MPO_state, H):
+	# Solve power method
+	tic = time()
+	pm = evp.power_method(H, initial_guess = MPO_state, sigma = -1, repeats = 10)
+	toc = time() - tic
+	print(f'Time for pm:  {toc:.2f}')
+	return pm, toc
 
 
-# # exact
-# Verfgau = utils.get_Verfgau(x, y, z, N, 1.5)
-# np.save("output/test_Verfgau_exact.npy", Verfgau)
-# # SVD decomp of exact
-# Verfgau_TT = utils.tensor_SVD(N, Verfgau, 20)
-# #contract tensor trains
-# contraction1 = np.einsum('ijk, kpm->ijpm', TT[0], TT[1])
-# contraction1 = np.einsum('ijpm, mqi->jpq', contraction1, TT[2])
-# print(f"Shape of contracted TT: {contraction1.shape}")
-# np.save("output/tt_potential.npy", contraction1)
+# Solve FDM
+from scipy.sparse import kron, diags
+from scipy.sparse.linalg import LinearOperator, eigsh
+def solve_FDM(N, L = 15)
 
-# contraction = np.einsum('ijk, kpm->ijpm', Verfgau_TT[0], Verfgau_TT[1])
-# contraction = np.einsum('ijpm, mqi->jpq', contraction, Verfgau_TT[2])
-# print(f"Shape of contracted Verfgau: {contraction.shape}")
+    h = 2 * L / (N - 1)
+    x1 = np.linspace(-L, L, N)
+    x, y, z = np.meshgrid(x1, x1, x1)
+    T1 = utils.get_kinetic(N, h)
+    T = kron(kron(T1, np.eye(N)), np.eye(N)) + kron(kron(np.eye(N), T1), np.eye(N)) + kron(kron(np.eye(N), np.eye(N)), T1)
 
-# # test with exact
-# diff_TT = Verfgau - contraction1
-# print('Verfgau - TT: ', np.linalg.norm(diff_TT))
+    r = np.zeros((N**3, 3))
+    r[:, 0] = x.flatten()
+    r[:, 1] = y.flatten()
+    r[:, 2] = z.flatten()
+    V1 = utils.Verfgau_for_tt_cross(r)
+    V = diags([V1], [0], shape=(N**3, N**3))
 
-# diff_Verfgau = Verfgau - contraction
-# print('Verfgau - Verfgau_TT', np.linalg.norm(diff_Verfgau))
-
-
-
-
-# # compatibility test tensor train datatype
-
-# expectation_values = utils.expectation_values(N, T, TT, MPS)
-
-# print(f'<T> = {expectation_values[0]}')
-# print(f'<V> = {expectation_values[1]}')
-# print(f'<E> = {expectation_values[2]}')
+    H = T + V
+    tic = time()
+    E, Psi = eigsh(H, k=1, which='SA', tol=1e-6)
+    toc = time() - tic
+    print(f'Time for FDM:  {toc:.2f}')
+    return E, toc
 
 
+bond_dims = [2, 3, 4, 5]
+num_points = [50, 100, 150, 200]
 
-# # test
+for D in bond_dims:
+	print('solving for D =', D)
+	f = open('output/ALS_N_t_for_bond_dim_' + str(D) + '.txt', 'w')
+	g = open('output/pm_N_t_for_bond_dim_' + str(D) + '.txt', 'w')
+	t = open('output/FDM_N_t_for_bond_dim_' + str(D) + '.txt', 'w')
+	for N in num_points:
+		# Initial guess MPO
+		MPS = [np.random.rand(1, N, D), np.random.rand(D, N, D), np.random.rand(D, N, 1)]
+		MPO = [site[:, :, np.newaxis, :] for site in MPS]
+		MPO_state = TT(MPO)
+		# hamiltonian
+		H = construct_H(N)
+		# solve and write to file
+		eigval_pm, toc_pm = solve_pm(MPO_state, H)
+		g.write(str(toc_pm) + ' ' + str(N) + ' ' + str(list(eigval_pm)[0]) + '\n')
+		eigval, toc = solve_ALS(MPO_state, H)
+		f.write(str(toc) + ' ' + str(N) + ' ' + str(eigval) + '\n')
+		eigval_fdm, toc_fdm = solve_FDM(N)
+		t.write(str(toc_fdm) + ' ' + str(N) + ' ' + str(eigval_fdm) + '\n')
+	f.close()
+	g.close()
+	t.close()
+
+
+
+
+# # shape TT
 # for i, tensor in enumerate(V):
 # print(f'Shape of tensor {i + 1}: {tensor.shape} \n')
