@@ -55,7 +55,7 @@ def solve_pm(MPO_state, H):
 # Solve FDM
 from scipy.sparse import kron, diags
 from scipy.sparse.linalg import LinearOperator, eigsh
-def solve_FDM(N, L = 15)
+def solve_FDM(N, L = 15):
 
     h = 2 * L / (N - 1)
     x1 = np.linspace(-L, L, N)
@@ -72,7 +72,7 @@ def solve_FDM(N, L = 15)
 
     H = T + V
     tic = time()
-    E, Psi = eigsh(H, k=1, which='SA', tol=1e-6)
+    E, Psi = eigsh(H, k=1, which='SA', tol = 1e-10)
     toc = time() - tic
     print(f'Time for FDM:  {toc:.2f}')
     return E, toc
@@ -103,10 +103,3 @@ for D in bond_dims:
 	f.close()
 	g.close()
 	t.close()
-
-
-
-
-# # shape TT
-# for i, tensor in enumerate(V):
-# print(f'Shape of tensor {i + 1}: {tensor.shape} \n')

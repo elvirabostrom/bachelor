@@ -12,7 +12,7 @@ def plot_tensor_slices(tensor):
 
     im_list = []
     for i in range(num_slices):
-        im = axes[i].imshow(tensor[:, :, i], cmap = 'viridis', aspect = 'auto', vmin = vmin, vmax = vmax)
+        im = axes[i].imshow(tensor[:, :, i], cmap = 'Greys', aspect = 'auto', vmin = vmin, vmax = vmax)
         axes[i].set_title(f"$z_{i}$")
         axes[i].axis("off")
         im_list.append(im)
@@ -59,40 +59,39 @@ diff = np.sqrt(np.sum(diff_TT**2) * h**3)
 print('diff: ', diff)
 
 # hist
+print(diff_TT.shape)
+print(diff_TT.flatten().shape)
 plt.figure(figsize = (4,3))
-plt.hist(diff_TT.flatten(), bins=50, density = True)
+plt.hist(diff_TT.flatten(), bins=50, color = 'cadetblue')
 plt.yscale('log')
-plt.xlabel('Error')
+plt.xlabel('V$_{erfgau}$ - V$_{TT}$')
 plt.ylabel('Number of points')
 plt.tight_layout()
 plt.savefig('output/potential_error_distribution.pdf')
 plt.show()
 
-# worst positions
-# diff_flat = diff_TT.flatten()
-# worst_indices = np.argsort(diff_flat)[:10]  # 10 minste verdier (mest negative, mest avvik)
-# shape = diff_TT.shape
-# worst_positions = np.unravel_index(worst_indices, shape)
-# print('x, y, z arrays med høyest avvik: ', worst_positions)
+
 
 # error in z-plane
 plt.figure(figsize = (4,3))
-plt.imshow(np.log10(np.abs(1e-16 + diff_TT[:,:,N//2])))
+plt.imshow(np.log10(np.abs(1e-16 + diff_TT[:,:,N//2])), cmap = 'bone')
 plt.xlabel('y')
 plt.ylabel('x')
-plt.colorbar()
+plt.colorbar(label = 'log$_{10}$ Error')
 plt.tight_layout()
 plt.savefig('output/potential_error_zplane.pdf')
 plt.show()
+
+
 
 #tomography
 error = np.abs(diff_TT)**2
 tom = np.sum(error, axis = 2) * h
 plt.figure(figsize = (4,3))
-plt.imshow(np.log10(tom + 1e-16))
+plt.imshow(np.log10(tom + 1e-16), cmap = 'bone')
 plt.xlabel('y')
 plt.ylabel('x')
-plt.colorbar(label = ' ', format = '{x:.2f}')
+plt.colorbar(label = 'log$_{10}$ Error density', format = '{x:.2f}')
 plt.tight_layout()
 plt.savefig('output/potential_error_density.pdf')
 plt.show()
@@ -100,10 +99,10 @@ plt.show()
 error = np.abs(diff_TT)**2
 tom = np.sum(error, axis = 0) * h
 plt.figure(figsize = (4,3))
-plt.imshow(np.log10(tom + 1e-16))
+plt.imshow(np.log10(tom + 1e-16), cmap = 'bone')
 plt.xlabel('z')
 plt.ylabel('y')
-plt.colorbar(label = ' ', format = '{x:.2f}')
+plt.colorbar(label = 'log$_{10}$ Error density', format = '{x:.2f}')
 plt.tight_layout()
 plt.savefig('output/potential_error_density_x.pdf')
 plt.show()
@@ -111,10 +110,10 @@ plt.show()
 error = np.abs(diff_TT)**2
 tom = np.sum(error, axis = 1) * h
 plt.figure(figsize = (4,3))
-plt.imshow(np.log10(tom + 1e-16))
+plt.imshow(np.log10(tom + 1e-16), cmap = 'bone')
 plt.xlabel('x')
 plt.ylabel('z')
-plt.colorbar(label = ' ', format = '{x:.2f}')
+plt.colorbar(label = 'log$_{10}$ Error density', format = '{x:.2f}')
 plt.tight_layout()
 plt.savefig('output/potential_error_density_y.pdf')
 plt.show()

@@ -248,20 +248,19 @@ def eq_energies(basis, nactorb, nactelec, bond_dim, molecule, mo_indices):
 	CASSCF_eq = mycas.e_tot 
 
 	# DMRG-CASSCF
-	DMRG_eq = DMRG_calc(mf, nactorb, nactelec, bond_dim, mo_indices)
+	mc = dmrgscf.DMRGSCF(mf, nactorb, nactelec, maxM = bond_dim)
+	mo = mc.sort_mo(mo_indices)
+	mc.kernel(mo)
+	DMRG_eq = mc.e_tot
 
 	#MRPT (NEVPT2)
-	mm = mcscf.CASSCF(mf, nactorb, nactelec)
-	mm.sort_mo(mo_indices)
-	mm.fcisolver = dmrgscf.DMRGCI(mol, maxM=bond_dim)
-	mm.kernel()
-	sc = mrpt.NEVPT2(mm)
+	nevpt_e = mrpt.NEVPT(mc).kernel()
 
 	# Write to file
 	filename = 'output/eq_energies_' + molecule + '.txt'
 	f = open(filename, 'w')
 	f.write('RHF' + ' ' + 'RKS' + ' ' + 'CCSD' + ' ' + 'CASSCF' + ' ' + 'DMRG' + ' ' + 'NEVPT2' + '\n')
-	f.write(str(RHF_eq) + ' ' + str(RKS_eq) + ' ' + str(CCSD_eq) + ' ' + str(CASSCF_eq) + ' ' + str(DMRG_eq) + ' ' + str(sc + DMRG_eq) + '\n')
+	f.write(str(RHF_eq) + ' ' + str(RKS_eq) + ' ' + str(CCSD_eq) + ' ' + str(CASSCF_eq) + ' ' + str(DMRG_eq) + ' ' + str(nevpt_e + DMRG_eq) + '\n')
 
 
 # Compute isolated atom energies (RHF, RKS, CCSD, CASSCF, DMRG-CASSCF)
@@ -293,7 +292,7 @@ def isolated_atoms_energies(basis, bond_dim, nactorb = 4, nactelec = 5):
 	DMRG_N = mc.e_tot * 2
 
 	#MRPT (NEVPT2)
-	sc = mrpt.NEVPT2(mc) * 2
+	nevpt_e = mrpt.NEVPT(mc).kernel() * 2
 
 	#FCI
 	cisolver = fci.FCI(mf)
@@ -302,7 +301,7 @@ def isolated_atoms_energies(basis, bond_dim, nactorb = 4, nactelec = 5):
 	# Write to file
 	f = open('output/isolated_atom_energies_2N.txt', 'w')
 	f.write('RHF' + ' ' + 'RKS' + ' ' + 'CCSD' + ' ' + 'CASSCF' + ' ' + 'DMRG' + ' ' + 'NEVPT2' + ' ' + 'FCI' + '\n')
-	f.write(str(RHF_N) + ' ' + str(RKS_N) + ' ' + str(CCSD_N) + ' ' + str(CASSCF_N) + ' ' + str(DMRG_N) + ' ' + str(sc + DMRG_N) + ' ' + str(FCI_N) + '\n')
+	f.write(str(RHF_N) + ' ' + str(RKS_N) + ' ' + str(CCSD_N) + ' ' + str(CASSCF_N) + ' ' + str(DMRG_N) + ' ' + str(nevpt_e + DMRG_N) + ' ' + str(FCI_N) + '\n')
 
 
 # PES using CASSCF and DMRG-CASSCF with increasing number of H-atoms
@@ -411,14 +410,15 @@ def D_increase_N_H(basis, bond_dims, shape, natoms):
 
 		# CASSCF
 		tic1 = time()
-		energy_CASSCF[i] = CASSCF_calc(mf, nactorb, nactelec)
+		energy_CASSCF[i] = CASSCF_unspecified_orbs(mf, nactorb, nactelec)
 		time_CASSCF[i] = time() - tic1
 
 		# DMRG-CASSCF
 		for j, D in enumerate(bond_dims):
 			print('D:', D)
 			tic2 = time()
-			energy_DMRG[i, j] = DMRG_calc(mf, nactorb, nactelec, D)
+			mc = dmrgscf.DMRGSCF(mf, nactorb, nactelec, maxM = D, tol = 1e-10).run()
+			energy_DMRG[i, j] = mc.e_tot
 			time_DMRG[i, j] = time() - tic2
 
 	# Write to file

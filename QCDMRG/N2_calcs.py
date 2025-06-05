@@ -31,3 +31,13 @@ bond_dim_PES(R, nactorb, nactelec, basis, bond_dims, molecule, mo_indices)
 # Compute dissociation energy data (RHF, RKS, CCSD, CASSCF, DMRG-CASSCF, NEVPT2) and write to file
 eq_energies(basis, nactorb, nactelec, bond_dim, molecule, mo_indices) # Energy of molecule at equilibrium 'output/eq_energies_N2.txt'
 isolated_atoms_energies(basis, bond_dim) # 2 x Energy of isolated atom, also solves FCI, 'output/isolated_atom_energies_2N.txt'
+
+# NEVPT2 on dissociatied molecule (R = 2.9)
+R = 2.9
+mol = initialize_N2(R, basis)
+mf = scf.RHF(mol).run()
+mc = dmrgscf.DMRGSCF(mf, nactorb, nactelec, maxM = bond_dim)
+mo = mc.sort_mo(mo_indices)
+mc.kernel(mo)
+nevpt_e = mrpt.NEVPT(mc).kernel()
+

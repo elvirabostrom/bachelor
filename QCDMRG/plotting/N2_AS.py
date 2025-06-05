@@ -28,7 +28,7 @@ plt.savefig('output/AS_exp_t.pdf', bbox_inches='tight')
 plt.show()
 
 # energy
-plt.figure(figsize = (3.2, 2.4))
+plt.figure(figsize = (3.5, 2.4))
 plt.plot(AS, DMRG, label = 'DMRG-CASSCF', color = 'b', linewidth = 0.9)
 plt.plot(AS, DMRG, label = 'CASSCF', color = 'r', linewidth = 0.9, linestyle = '--')
 plt.xlabel('Active space size (orbitals)')

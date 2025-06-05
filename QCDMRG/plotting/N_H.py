@@ -60,7 +60,7 @@ t_DMRG = data['time_DMRG']
 errors = np.log10(np.abs(CASSCF - DMRG) + 1e-10)
 colorse = ['darkturquoise', 'firebrick', 'yellowgreen', 'orange', 'violet', 'darkslategrey']
 
-plt.figure(figsize=(5, 4))
+plt.figure(figsize=(4, 3.5))
 for i, d in enumerate(N):
 	plt.plot(R, errors[i, :], label=f'N={d}', color = colorse[i % len(colorse)], linewidth = 0.7)
 plt.xlabel('Bond length (Å)')
@@ -74,23 +74,23 @@ plt.show()
 
 
 # N, t (for selected R)
-selected_indices = [0, int(len(R)/2), len(R) - 1]
-color1 = ['skyblue', 'b', 'k']
-color2 = ['coral', 'r', 'darkred']
+selected_indices = [0, int(len(R) - 80), len(R) - 1]
+color1 = ['b', 'r', 'k']
 markers = ['o', 's', '^']
 
-plt.figure(figsize=(6, 4))
+plt.figure(figsize=(4, 3.5))
 for i, idx in enumerate(selected_indices): 
 	if i==1:
 		markers_on = np.array([1, 3, 5])
 	else:
 		markers_on = [0, 2, 4]
 	r_val = R[idx]
-	plt.plot(N, np.log10(t_DMRG[:, idx]), label=f'R={r_val:.2f}, DMRG', color = 'b',marker = markers[i % len(markers)], markevery=markers_on, linewidth=0.7)
-	plt.plot(N, np.log10(t_CASSCF[:, idx]), label=f'R={r_val:.2f}, CASSCF', color = 'r',marker = markers[i % len(markers)], markevery=markers_on, linewidth=0.7)
+	print(r_val)
+	plt.plot(N, np.log10(t_DMRG[:, idx]), label=f'R={r_val:.2f}, DMRG', color = color1[i % len(color1)], linestyle = '--', linewidth=0.7)
+	plt.plot(N, np.log10(t_CASSCF[:, idx]), label=f'R={r_val:.2f}, CASSCF', color = color1[i % len(color1)], linewidth=0.7)
 plt.xlabel('System size (N)')
 plt.ylabel('log$_{10}$ CPU-time (s)')
-plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol = 3, frameon = False)
+plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol = 2, frameon = False)
 plt.xlim(2, 12)
 plt.grid(True)
 plt.tight_layout()
@@ -134,7 +134,6 @@ DMRG = data['energy_DMRG'] # N * R
 t_DMRG = data['time_DMRG']
 
 for i, n in enumerate(N):
-	plt.plot(R, np.log10(t_DMRG[i, :]), label=f'N={n}', color='grey',marker=markers[i], linewidth=0.7)
 	print('N:',n, np.log10(t_DMRG[i, :]))
 
 """
@@ -161,26 +160,26 @@ error_N10 = np.log10(np.abs([CASSCF[0] - DMRG[0, i] for i in range(len(D))]))
 error_N12 = np.log10(np.abs([CASSCF[1] - DMRG[1, i] for i in range(len(D))]))
 
 plt.figure(figsize = (4,3))
-plt.plot(D, error_N10, label ='N=10', linewidth=0.7, color = 'grey', marker='o')
-plt.plot(D, error_N12, label ='N=12', linewidth=0.7, color = 'grey', marker='s')
+plt.plot(D, error_N10, label ='N=10', linewidth=0.7, color = 'b', marker='o')
+plt.plot(D, error_N12, label ='N=12', linewidth=0.7, color = 'b', marker='s')
 plt.xlabel('Bond dimension (D)')
 plt.ylabel('log$_{10}$ Energy error (Hartree)')
 plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol = 2, frameon = False)
-plt.xlim(200, 2000)
+plt.xlim(50, 1000)
 plt.grid(True)
 plt.tight_layout()
 plt.savefig('output/' + shape + '_N_H_bond_dim_error.pdf', bbox_inches='tight')
 plt.show()
 
-plt.figure(figsize = (4,3.7))
+plt.figure(figsize = (4,3.5))
 #plt.plot(D, np.log10(np.ones(len(D)) * t_CASSCF[0]), label='N=10, CASSCF', linewidth=0.7, color = 'r')
-plt.plot(D, np.log10(np.ones(len(D)) * t_CASSCF[1]), label='N=12, CASSCF', linewidth=0.7, color = 'r', marker='s')
+plt.plot(D, np.log10(np.ones(len(D)) * t_CASSCF[1]), label='N=12, CASSCF', linewidth=0.7, color = 'r')
 plt.plot(D, np.log10(t_DMRG[0,:]), label='N=10, DMRG-CASSCF', linewidth=0.7, color = 'b', marker='o')
 plt.plot(D, np.log10(t_DMRG[1,:]), label='N=12, DMRG-CASSCF', linewidth=0.7, color = 'b', marker='s')
 plt.xlabel('Bond dimension (D)')
 plt.ylabel('log$_{10}$ CPU-time (s)')
 plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol = 1, frameon = False)
-plt.xlim(200, 2000)
+plt.xlim(50, 1000)
 plt.grid(True)
 plt.tight_layout()
 plt.savefig('output/' + shape + '_N_H_bond_dim_time.pdf', bbox_inches='tight')

@@ -17,7 +17,7 @@ CCSD = np.loadtxt('output/BeH2_PES.txt', skiprows = 1)[:, 3]
 CASSCF = np.loadtxt('output/BeH2_PES.txt', skiprows = 1)[:, 4]
 DMRG = np.loadtxt('output/BeH2_PES.txt', skiprows = 1)[:, 5]
 
-plt.figure(figsize = (5,4))
+plt.figure(figsize = (4,3.5))
 markers_on = [10, 20, 30, 40, 50, 60, 70, 80, 90]
 plt.plot(R, RHF, label = 'RHF', color = 'grey', marker = 'o', markevery=markers_on, linewidth=0.7)
 plt.plot(R, RKS, label = 'RKS', color = 'grey', marker = 's', markevery=markers_on, linewidth=0.7)
@@ -26,7 +26,7 @@ plt.plot(R, CASSCF, label = 'CASSCF', color = 'r', linewidth=0.7)
 plt.plot(R, DMRG, label = 'DMRG-CASSCF', color = 'b', linewidth=0.7, linestyle = '--')
 plt.xlabel('x (Å)')
 plt.ylabel('Energy (Hartree)')
-plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol = 3, frameon = False)
+plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol = 2, frameon = False)
 plt.grid(True)
 plt.xlim(0, 4)
 plt.tight_layout()
